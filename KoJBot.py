@@ -6,27 +6,41 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from typing import Dict, List
 from collections import namedtuple
-
+import logging
 from player import Player
 from game import Game, GameState
 
 load_dotenv()
-#TOKEN = os.getenv('DISCORD_TOKEN')
-#GUILD = os.getenv('DISCORD_GUILD')
+TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD = os.getenv('DISCORD_GUILD')
 
-Eight_Ball = ["Because your parents don't love you", "Because quinn has decreed it as such", "LMAO LOSER", "Fate has decreed it so",
-                "Nugget", "Why not?", "There is no conceivable way I could comprehend an answer that even basically approaches that question",
-                "Sometimes when a man and woman love each other, BOOM ya got preggers bitch", "Who knows man? Probably fucking magic dude",
-                "It's a crazy world we live in", "ANYTHINGS POSSIBLE!!!! except the answer to that question", "I would know that if I was alive then",
-                "PROCESSSSSSING............................ Nope no clue", "Sure, why not?", "Quinn can suck a chode for making me write the flip command",
-                "NO F***ING WAY AM I GOING TO ANSWER THAT YOU FREAK"
-]
+Eight_Ball = ["Because your parents don't love you", 
+            "Because quinn has decreed it as such",
+            "LMAO LOSER", 
+            "Fate has decreed it so",
+            "Nugget", 
+            "Why not?", 
+            "There is no conceivable way I could comprehend an answer that even basically approaches that question",
+            "Sometimes when a man and woman love each other, BOOM ya got preggers", 
+            "Who knows man? Probably magic dude",
+            "It's a crazy world we live in", 
+            "ANYTHINGS POSSIBLE!!!! except the answer to that question", 
+            "I would know that if I was alive then",
+            "PROCESSSSSSING............................ Nope no clue", 
+            "Sure, why not?",
+            "NO F***ING WAY AM I GOING TO ANSWER THAT YOU FREAK"]
 
-TOKEN=('NzMwOTg1MTYyOTg4MzIyODU4.XwfdjA.UBjTEJOL4OI6fQzmGiNXdlRkrUU')
-GUILD=('132364448982630401')
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+# intents.messages = True
+
+client = discord.Client(intents=intents)
+# client = discord.Client()
 
 games: Dict[discord.TextChannel, Game] = {}
-client = discord.Client()
 
 async def new_game(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
@@ -299,4 +313,7 @@ async def on_message(message):
             # if game.state == GameState.END:
             #     messages = end_game(game, message)
             #     await message.channel.send(messages)
-client.run(TOKEN)
+
+# client.run(TOKEN)
+
+client.run(TOKEN, log_handler=handler)
