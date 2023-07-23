@@ -9,6 +9,7 @@ from collections import namedtuple
 import logging
 from player import Player
 from game import Game, GameState
+from PIL import Image
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -38,6 +39,7 @@ intents.message_content = True
 # intents.messages = True
 
 client = discord.Client(intents=intents)
+
 # client = discord.Client()
 
 games: Dict[discord.TextChannel, Game] = {}
@@ -70,7 +72,31 @@ async def join_game(game: Game, message: discord.Message) -> List[str]:
         return [f"You've already joined the game {message.author.name}!"]
 
 async def rules(game: Game, message: discord.Message):
-    return "https://cdn.discordapp.com/attachments/730974585209487411/794111063079125042/test2.png"
+
+    # image_paths = ["Images/die_1_OG.png", "Images/die_2_OG.png", "Images/die_3_OG.png"]
+    # # Maximum width and height for the resized images
+    # max_size = (32, 32)
+
+    # try:
+    #     files = []
+    #     for path in image_paths:
+    #         with Image.open(path) as image:
+    #             image.thumbnail(max_size)
+    #             image_file = discord.File(image.filename, filename=f"resized_{image.filename}")
+    #             files.append(image_file)
+
+    #     await message.channel.send(files=files)
+    # except FileNotFoundError:
+    #     await message.channel.send("One or more image files not found.")
+
+
+    try:
+        with open("Images/rules.png", "rb") as file:
+            image_file = discord.File(file)
+            await message.channel.send(file=image_file)
+    except FileNotFoundError:
+        await message.channel.send("Image file not found.")
+    return ""
 
 async def reroll(game: Game, message: discord.Message) -> List[str]:
     if game.state != GameState.ROLLED:
@@ -131,8 +157,35 @@ async def rolls(game: Game,  message: discord.Message) -> List[str]:
 async def start_game(game: Game, message: discord.Message) -> List[str]:
     concat = ""
     game.state = GameState.ROLLED
-    for player in game.players:
-        concat += player.print_dice()
+    channel = message.channel
+    await channel.send("Creating threads")
+    threads = []
+
+    
+    thread1 = await channel.create_thread(
+        name="Player 1",    
+        type=discord.ChannelType.private_thread
+    )
+    thread2 = await channel.create_thread(
+        name="Player 2",    
+        type=discord.ChannelType.private_thread
+    )
+
+
+
+    await channel.send("threads created")
+
+    threads.append(thread1)
+    threads.append(thread2)
+    # await thread1.add_user(message.author)
+    # await thread2.add_user(game.players[1])
+
+    for index, player in enumerate(game.players):
+        player.thread = threads[index]
+        await player.thread.add_user(player.user)
+        dice_rolls = player.print_dice()
+        concat += dice_rolls
+        await player.thread.send(dice_rolls)
     return concat + "Now players may reroll one die by which dice using the command reroll"
 
 # Testing purposes only
@@ -207,12 +260,65 @@ async def end_game(game: Game, message: discord.Message) -> List[str]:
     game.round_number = 0
     return "Game Reset"
 
+async def die_conversion(number, message):
+    emoji_name = "die_{}".format(number)
+
+    custom_emoji = discord.utils.get(message.guild.emojis, name=emoji_name)
+
+    if custom_emoji:
+        emoji_id = custom_emoji.id
+        # await message.channel.send(f"The ID of the custom emoji {emoji_name} is: {emoji_id}")
+    else:
+        await message.channel.send(f"Custom emoji {emoji_name} not found.")
+        return "" + str(number) + ""
+
+    emoji = "<:{}:{}>".format(emoji_name, emoji_id)
+
+    #     # Send the emoji as a message
+    # await message.channel.send(emoji)
+
+    return "" + emoji + " "
+
 
 async def test(game: Game, message: discord.Message) -> List[str]:
-    tokens = message.content.split()[1:]
-    await message.author.send("HELLO")
-    await message.author.fetch_message(ID)
-    return "test function working"
+
+
+    channel = message.channel
+    print("Channel name is ", channel)
+
+    thread = await channel.create_thread(
+        name="Player 1",    
+        type=discord.ChannelType.private_thread
+    )
+
+    await thread.add_user(message.author)
+
+    dice = [str(random.choice(range(1, 7))) for _ in range(6)]
+
+    s = ""
+    for die in dice:
+        s += await die_conversion(die, message)
+
+    await thread.send(s)
+
+    return s
+    # emoji_name = "die_1"
+
+    # # Find the custom emoji by name
+    # custom_emoji = discord.utils.get(message.guild.emojis, name=emoji_name)
+
+    # if custom_emoji:
+    #     emoji_id = custom_emoji.id
+    #     await message.channel.send(f"The ID of the custom emoji {emoji_name} is: {emoji_id}")
+    # else:
+    #     await message.channel.send(f"Custom emoji {emoji_name} not found.")
+
+    # emoji = "<:{}:{}>".format(emoji_name, emoji_id)
+
+    # #     # Send the emoji as a message
+    # await message.channel.send(emoji)
+    # # await message.author.send(":die_1: :die_2: :die_3: :die_4: :die_5: :die_6: ") # this message is a DM
+    # return ""
 
 
 async def flip(game: Game, message: discord.Message) -> List[str]:
