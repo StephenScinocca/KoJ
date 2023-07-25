@@ -25,7 +25,6 @@ class Player:
         else:
             dice_string = ""
             for die in self.dice:
-                print(die)
                 dice_string += self.die_conversion(die)
             return dice_string
             # return self.user.name + "'s dice rolls are: ||" + " ".join(map(str,self.dice)) + "||\n"
@@ -42,6 +41,8 @@ class Player:
 
         guild = self.thread.guild
         emoji_name = "die_{}".format(number)
+        if number == "NULL":
+            return "❌ "
 
         custom_emoji = discord.utils.get(guild.emojis, name=emoji_name)
 

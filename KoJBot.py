@@ -46,7 +46,7 @@ games: Dict[discord.TextChannel, Game] = {}
 
 async def new_game(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
-        game.new_game()
+        game.new_game(message)
         game.add_player(message.author)
         game.state = GameState.WAITING
         return "A new game has been started by " + message.author.name + "! \nMessage p2 to join the game."
@@ -107,6 +107,7 @@ async def reroll(game: Game, message: discord.Message) -> List[str]:
     if len(tokens) > 3:
         return "Added too many arguments"
     try:
+            knights_text =  "\n" + knights(game, message)
             die = int(tokens[2])
             if die < 0 or die > 6:
                 return "Use a dice index between 1 and 6"
@@ -118,15 +119,18 @@ async def reroll(game: Game, message: discord.Message) -> List[str]:
                     game.players[0].reroll = True
                     if die != 0:
                         temp = await game.swap_dice(message.author, die)
-                        return temp + "\nNow " + game.players[0].name + " picks their first knight"
+                        await game.players[0].thread.send(temp)
+                        return "\nNow " + game.players[0].name + " picks their first knight" + knights_text
                     else:
-                        return "No dice changed \nNow " + game.players[0].name + " picks their first knight"
+                        return "No dice changed \nNow " + game.players[0].name + " picks their first knight" + knights_text
                 else:
                     game.players[0].reroll = True
                     if die != 0:
-                        return await game.swap_dice(message.author, die)
+                        temp = await game.swap_dice(message.author, die)
+                        await game.players[0].thread.send(temp)
+                        return "Die swapped"
                     else:
-                        return "No dice changed"
+                        return "No dice changed"    
             elif game.players[1].user == message.author:
                 if game.players[1].reroll == True:
                     return "Only 1 reroll is allowed per player"
@@ -135,13 +139,16 @@ async def reroll(game: Game, message: discord.Message) -> List[str]:
                     game.players[1].reroll = True
                     if die != 0:
                         temp = await game.swap_dice(message.author, die)
-                        return  temp + "\nNow " + game.players[0].name + " picks their first knight"
+                        await game.players[1].thread.send(temp)       
+                        return   "\nNow " + game.players[0].name + " picks their first knight" + knights_text
                     else:
-                        return "No dice changed \nNow " + game.players[0].name + " picks their first knight"
+                        return "No dice changed \nNow " + game.players[0].name + " picks their first knight" + knights_text
                 else:
                     game.players[1].reroll = True
                     if die != 0:
-                        return await game.swap_dice(message.author, die)
+                        temp = await game.swap_dice(message.author, die)
+                        await game.players[1].thread.send(temp)
+                        return "Die swapped"
                     else:
                         return "No dice changed"
             else:
@@ -186,7 +193,7 @@ async def start_game(game: Game, message: discord.Message) -> List[str]:
         dice_rolls = player.print_dice()
         concat += dice_rolls
         await player.thread.send(dice_rolls)
-    return concat + "Now players may reroll one die by which dice using the command reroll"
+    return"Now players may reroll one die by which dice using the command reroll"
 
 # Testing purposes only
 async def state(game: Game, message: discord.Message) -> List[str]:
@@ -217,7 +224,8 @@ async def pick(game: Game, message: discord.Message) -> List[str]:
         if game.state == GameState.ROUNDS:
             concat = concat + "\nNow we start round one. Type use and the indexes of the dice you want to play\n"
             for player in game.players:
-                concat = concat + player.print_dice()
+                dice_rolls = player.print_dice()
+                await player.thread.send(dice_rolls)
         return concat
     else:
         return "Invalid knight"
@@ -243,7 +251,8 @@ async def use(game: Game, message: discord.Message) -> List[str]:
             temp = temp + game.use_knights()
             temp = temp + "\n" + game.calculate()
             for player in game.players:
-                temp = temp + player.print_dice()
+                dice_rolls = player.print_dice()
+                await player.thread.send(dice_rolls)
         await game.rolls(game.players[0].user)
         await game.rolls(game.players[1].user)
         return temp
@@ -282,7 +291,6 @@ async def die_conversion(number, message):
 
 async def test(game: Game, message: discord.Message) -> List[str]:
 
-
     channel = message.channel
     print("Channel name is ", channel)
 
@@ -302,8 +310,9 @@ async def test(game: Game, message: discord.Message) -> List[str]:
     await thread.send(s)
 
     return s
-    # emoji_name = "die_1"
 
+
+    # emoji_name = "die_1"
     # # Find the custom emoji by name
     # custom_emoji = discord.utils.get(message.guild.emojis, name=emoji_name)
 
@@ -320,6 +329,18 @@ async def test(game: Game, message: discord.Message) -> List[str]:
     # # await message.author.send(":die_1: :die_2: :die_3: :die_4: :die_5: :die_6: ") # this message is a DM
     # return ""
 
+async def remove_threads(game: Game, message: discord.Message) -> List[str]:
+
+    threads = message.channel.threads
+
+    # Delete each thread
+    for thread in threads:
+        await thread.delete()
+
+    await message.channel.send("All threads in this channel have been deleted.")
+
+    return ""
+
 
 async def flip(game: Game, message: discord.Message) -> List[str]:
     value = 0
@@ -329,7 +350,7 @@ async def flip(game: Game, message: discord.Message) -> List[str]:
     elif value == 2:
         return "TAILS"
     else:
-        return "QUINN WHY DID YOU MAKE ME DO THIS"
+        return "ERROR"
 
 async def show_help(game: Game, message: discord.Message) -> List[str]:
     longest_command = len(max(commands, key=len))
@@ -371,7 +392,9 @@ commands: Dict[str, Command] = {
     'help' :   Command('Shows a list of the commands',
                     show_help),
     'flip' :   Command('Shows a list of the commands',
-                    flip)
+                    flip),
+    'remove_threads' :   Command('Removes all threads corresponding to this text channel',
+                    remove_threads)
 
 }
 
@@ -404,7 +427,7 @@ async def on_message(message):
                 await message.channel.send(message.content + " is not a valid command. \nMessage !help to see the list of commands.")
                 return
 
-            game = games.setdefault(message.channel, Game())
+            game = games.setdefault(message.channel, Game(message))
             # try:
             messages = await commands[command][1](game, message)
 

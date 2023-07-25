@@ -28,11 +28,11 @@ class GameState (Enum):
 
 
 class Game:
-    def __init__(self) -> None:
-       self.new_game()
+    def __init__(self, message) -> None:
+       self.new_game(message)
 
 
-    def new_game(self):
+    def new_game(self, message: discord.Message):
         self.state = GameState.NO_GAME
         self.players: List[Player] = []
         self.total_rerolls = False
@@ -44,6 +44,7 @@ class Game:
         self.p1_played = False
         self.p2_played = False
         self.crystal = 0
+        self.channel = message.channel
 
     def add_player(self, user:discord.User) -> bool:
         if self.is_player(user) != None:
