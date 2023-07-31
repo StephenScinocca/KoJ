@@ -61,7 +61,7 @@ async def new_game(game: Game, message: discord.Message) -> List[str]:
 async def join_game(game: Game, message: discord.Message) -> List[str]:
     if game.state == GameState.NO_GAME:
         return ["No game has been started yet for you to join.",
-                "Message !newgame to start a new game."]
+                "Message koj p1 to start a new game."]
     elif game.state != GameState.WAITING:
         return [f"The game is already in progress, {message.author.name}.",
                 "You're not allowed to join right now."]
@@ -176,9 +176,7 @@ async def start_game(game: Game, message: discord.Message) -> List[str]:
     thread2 = await channel.create_thread(
         name="Player 2",    
         type=discord.ChannelType.private_thread
-    )
-
-
+    )   
 
     await channel.send("threads created")
 
@@ -255,11 +253,15 @@ async def use(game: Game, message: discord.Message) -> List[str]:
                 await player.thread.send(dice_rolls)
         await game.rolls(game.players[0].user)
         await game.rolls(game.players[1].user)
+        if game.state == GameState.END:
+            temp = temp + await end_game(game, message)
         return temp
     return "Cannot use right now"
 
 async def end_game(game: Game, message: discord.Message) -> List[str]:
     game.state = GameState.NO_GAME
+    for player in game.players:
+        await player.thread.delete()
     game.players: List[Player] = []
     game.total_rerolls = False
     game.knights  =  ["Crystal", "Blood", "Storm", "Leaf", "Sun", "Moon", "Shadow", "Flower", "Earth"]
@@ -267,49 +269,118 @@ async def end_game(game: Game, message: discord.Message) -> List[str]:
     game.p1_round_score = 0
     game.p2_round_score = 0
     game.round_number = 0
-    return "Game Reset"
+    return "Game Reset. Type 'koj p1' to start a new game."
 
-async def die_conversion(number, message):
-    emoji_name = "die_{}".format(number)
+# async def die_conversion(number, message):
+#     emoji_name = "die_{}".format(number)
 
-    custom_emoji = discord.utils.get(message.guild.emojis, name=emoji_name)
+#     custom_emoji = discord.utils.get(message.guild.emojis, name=emoji_name)
 
-    if custom_emoji:
-        emoji_id = custom_emoji.id
-        # await message.channel.send(f"The ID of the custom emoji {emoji_name} is: {emoji_id}")
+#     if custom_emoji:
+#         emoji_id = custom_emoji.id
+#         # await message.channel.send(f"The ID of the custom emoji {emoji_name} is: {emoji_id}")
+#     else:
+#         await message.channel.send(f"Custom emoji {emoji_name} not found.")
+#         return "" + str(number) + ""
+
+#     emoji = "<:{}:{}>".format(emoji_name, emoji_id)
+
+#     #     # Send the emoji as a message
+#     # await message.channel.send(emoji)
+
+#     return "" + emoji + " "
+
+async def add_custom_emojis(game: Game, message: discord.Message) -> List[str]:
+
+    if message.author.guild_permissions.manage_emojis:
+
+        knights = ["Crystal", "Blood", "Storm", "Leaf", "Sun", "Moon", "Shadow", "Flower", "Earth"]
+        dice = ['die_1', 'die_2', 'die_3', 'die_4', 'die_5', 'die_6']
+        # Get the server (guild) where you want to add the emoji
+        # guild = client.get_guild(GUILD)
+        guild = message.guild
+        # Check if the guild was found
+        if guild is not None:
+            # Emoji name and PNG image file path
+            for knight in knights:
+                knight = knight.lower()
+                emoji_name = knight
+                emoji_found = any(emoji.name == emoji_name for emoji in guild.emojis)
+
+                if emoji_found:
+                    await message.channel.send(f"The guild already has an emoji named '{emoji_name}'.")
+                else:
+                    emoji_image_path = "Images/{}.png".format(knight)  # Replace with the actual image file path
+
+                    # Convert the PNG image into bytes
+                    with open(emoji_image_path, "rb") as image_file:
+                        emoji_image_bytes = image_file.read()
+
+                    # Create the custom emoji
+                    custom_emoji = await guild.create_custom_emoji(name=emoji_name, image=emoji_image_bytes)
+
+                    await message.channel.send(f"Custom emoji added: {custom_emoji}")
+            for die in dice:
+                emoji_name = die
+                emoji_found = any(emoji.name == emoji_name for emoji in guild.emojis)
+
+                if emoji_found:
+                    await message.channel.send(f"The guild already has an emoji named '{emoji_name}'.")
+                else:
+                    emoji_image_path = "Images/{}.png".format(die)  # Replace with the actual image file path
+                    
+                    # Convert the PNG image into bytes
+                    with open(emoji_image_path, "rb") as image_file:
+                        emoji_image_bytes = image_file.read()
+
+                    # Create the custom emoji
+                    custom_emoji = await guild.create_custom_emoji(name=emoji_name, image=emoji_image_bytes)
+
+                    await message.channel.send(f"Custom emoji added: {custom_emoji}")
+        else:
+            await message.channel.send("Server not found.")
     else:
-        await message.channel.send(f"Custom emoji {emoji_name} not found.")
-        return "" + str(number) + ""
-
-    emoji = "<:{}:{}>".format(emoji_name, emoji_id)
-
-    #     # Send the emoji as a message
-    # await message.channel.send(emoji)
-
-    return "" + emoji + " "
-
+        await message.channel.send("You don't have the necessary permissions to add emojis.")
 
 async def test(game: Game, message: discord.Message) -> List[str]:
 
-    channel = message.channel
-    print("Channel name is ", channel)
+    guild = message.guild
+    if guild is not None:
+        emoji_name_to_check = "storm"  # Replace with the name of the emoji you want to check
 
-    thread = await channel.create_thread(
-        name="Player 1",    
-        type=discord.ChannelType.private_thread
-    )
+        # Iterate through the emojis in the guild and check if the desired name exists
+        emoji_found = any(emoji.name == emoji_name_to_check for emoji in guild.emojis)
 
-    await thread.add_user(message.author)
+        if emoji_found:
+            await message.channel.send(f"The guild has an emoji named '{emoji_name_to_check}'.")
+        else:
+            await message.channel.send(f"The guild does not have an emoji named '{emoji_name_to_check}'.")
 
-    dice = [str(random.choice(range(1, 7))) for _ in range(6)]
+    else:
+        await message.channel.send("Server not found.")
 
-    s = ""
-    for die in dice:
-        s += await die_conversion(die, message)
+    return "test"
 
-    await thread.send(s)
 
-    return s
+    # channel = message.channel
+    # print("Channel name is ", channel)
+
+    # thread = await channel.create_thread(
+    #     name="Player 1",    
+    #     type=discord.ChannelType.private_thread
+    # )
+
+    # await thread.add_user(message.author)
+
+    # dice = [str(random.choice(range(1, 7))) for _ in range(6)]
+
+    # s = ""
+    # for die in dice:
+    #     s += await die_conversion(die, message)
+
+    # await thread.send(s)
+
+    # return s
 
 
     # emoji_name = "die_1"
@@ -391,10 +462,12 @@ commands: Dict[str, Command] = {
                     test),
     'help' :   Command('Shows a list of the commands',
                     show_help),
-    'flip' :   Command('Shows a list of the commands',
+    'flip' :   Command('Heads or Tails',
                     flip),
     'remove_threads' :   Command('Removes all threads corresponding to this text channel',
-                    remove_threads)
+                    remove_threads,),
+    'custom_emotes' : Command('Adds all of the custom emotes needed to this discord server',
+                    add_custom_emojis)
 
 }
 

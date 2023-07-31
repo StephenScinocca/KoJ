@@ -37,7 +37,7 @@ class Player:
             self.dice[die-1] = str(random.choice(range(1,7)))
             return self.print_dice()
 
-    def die_conversion(self, number):
+    def die_conversion(self, number: str) -> str:
 
         guild = self.thread.guild
         emoji_name = "die_{}".format(number)
